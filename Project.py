@@ -10,7 +10,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import collections
-from scipy.stats import ks_2samp
 from scipy import stats
 #import random
 #import os 
@@ -51,7 +50,7 @@ def AddNode():
     network.append([])
     weights.append(0)
 
-def AddEdges(m = 3):
+def AddEdgesPref(m = 3):
     global Weight
     for i in range(T+X-1):                         #recalculate probabilities
         P[i] = weights[i]/Weight   
@@ -79,7 +78,37 @@ def AddEdges(m = 3):
 def Drive(s = 3):          #run with s as number of new edges per node added
     global Weight
     AddNode()
-    AddEdges(m = s)
+    AddEdgesPref(m = s)
+    
+def AddEdgesRandom(m = 3):
+    global Weight  
+                              
+    #randomly choose which old ones to connect with the new one
+    vertices = np.random.choice(T+X-1, m, replace = False)  
+
+    for k in range(m):                 #make connections and weight ammendments                                           
+        network[vertices[k]].append(X+T-1)
+        network[-1].append(k)
+        weights[vertices[k]] += 1
+        weights[-1] += 1
+    Weight += 2*m
+    P.append(0)
+                            
+def DriveRandom(s = 3):          #run with s as number of new edges per node added
+    global Weight
+    AddNode()
+    AddEdgesRandom(m = s)
+
+def DriveMixed(s = 3, q=2/3):
+    '''
+    Attach new edge preferentially (prob q) or randomly (prob 1-q)
+    '''
+    global Weight
+    AddNode()
+    if np.random.choice([0,1], p=[q,1-q]) == 1:
+        AddEdgesRandom(m = s)
+    else:
+        AddEdgesPref(m = s)
 
 def logbin(data, scale = 1., zeros = False):
     """
@@ -161,7 +190,7 @@ for k in range(1,5):
     y = np.array([i/total for i in y])
     plt.plot(x,y, label = 'M = {}'.format(k))
     
-    test_stat = ks_2samp(y, DegDist(x, m=k))
+    test_stat = stats.ks_2samp(y, DegDist(x, m=k))
     print(test_stat) #too few data points for KS??
     slope, intercept, r_value, p_value, std_err = stats.linregress(y, DegDist(x, m=k))
     print(slope, intercept, r_value, p_value, std_err)
@@ -183,7 +212,7 @@ for k in range(1,5):
          plt.plot(X['X{}'.format(k)], Y['Y{}'.format(k)], '-x', label = 'M = {}'.format(k))
          
          #plt.plot(X['X{}'.format(k)], DegDist(X['X{}'.format(k)], m=k), '-', label = 'D = {}'.format(k))
-         test_stat = ks_2samp(Y['Y{}'.format(k)], DegDist(X['X{}'.format(k)], m=k))
+         test_stat = stats.ks_2samp(Y['Y{}'.format(k)], DegDist(X['X{}'.format(k)], m=k))
          print(test_stat) #too few data points for KS??
          slope, intercept, r_value, p_value, std_err = stats.linregress(Y['Y{}'.format(k)], DegDist(X['X{}'.format(k)], m=k))
          print(slope, intercept, r_value, p_value, std_err)
@@ -191,5 +220,31 @@ plt.yscale('log')
 plt.xscale('log')
 plt.legend()
 plt.show()
+
+#%%
+'''
+1.4 data
+we go to highest m possible, m=5
+'''
+for j in range(10,18):
+    network = [[1,2,4],[0,2,3],[0,1,3],[1,2],[0]]           #initial network
+    weights = []                            #how many edges each vertex has
+    X = len(network)                        #size of initial network
+    T = 0                                   #time
+    for i in range(X):
+        weights.append(len(network[i]))
+    Weight = sum(weights)                   #sum of all edges 
+    P = []
+    for i in range(X):
+        P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
+    
+    for k in range(2**j): #do like power of 2 or something
+        Drive(s=5)
+    with open(outputdir+'/degM5-N2e{}'.format(j), 'wb') as f:
+        pickle.dump(weights,f)
+    with open(outputdir+'/netM5-N2e{}'.format(j), 'wb') as f:
+        pickle.dump(network,f)     
+
+
 
 
