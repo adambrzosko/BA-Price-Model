@@ -22,6 +22,14 @@ outputdir = '/home/adam/Desktop/work/3rd Year/Networks/Project'
 #5. errors and error bars
 #6. how to explain the logbinning motivation and the stats difference
 
+StartingSize = 64
+network = [[] for i in range(StartingSize)]
+for i in range(StartingSize):
+    att = np.random.choice(64, np.random.choice(64), replace = False)
+    for k in att:
+        if i not in network[k]:
+            network[k].append(i)
+            network[i].append(k)
 
 network = [[1,2,4],[0,2,3],[0,1,3],[1,2],[0]]           #initial network
 weights = []                            #how many edges each vertex has
@@ -75,7 +83,7 @@ def AddEdgesPref(m = 3):
     P.append(0)             #append any new P so that the array is right size
                             #(gets recalculated on next iteration anyway)
                             
-def Drive(s = 3):          #run with s as number of new edges per node added
+def DrivePref(s = 3):          #run with s as number of new edges per node added
     global Weight
     AddNode()
     AddEdgesPref(m = s)
@@ -152,10 +160,10 @@ def DegDist(x, m=1):
     return p
 
 #%%
-    '''
-    task 1.3 data
-    '''
-for k in range(2,5):
+'''
+task 1.3 data
+'''
+for k in range(1,5):
     network = [[1,2,4],[0,2,3],[0,1,3],[1,2],[0]]           #initial network
     weights = []                            #how many edges each vertex has
     X = len(network)                        #size of initial network
@@ -168,11 +176,11 @@ for k in range(2,5):
         P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
 
 
-    for i in range(100000):
-        Drive(k)
-    with open(outputdir+'/deg100k-M{}'.format(k), 'wb') as f:
+    for i in range(1000000):
+        DrivePref(k)
+    with open(outputdir+'/deg1M-M{}'.format(k), 'wb') as f:
         pickle.dump(weights,f)
-    with open(outputdir+'/net100k-M{}'.format(k), 'wb') as f:
+    with open(outputdir+'/net1M-M{}'.format(k), 'wb') as f:
         pickle.dump(network,f)      
         
 #%%
@@ -239,7 +247,7 @@ for j in range(10,18):
         P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
     
     for k in range(2**j): #do like power of 2 or something
-        Drive(s=5)
+        DrivePref(s=5)
     with open(outputdir+'/degM5-N2e{}'.format(j), 'wb') as f:
         pickle.dump(weights,f)
     with open(outputdir+'/netM5-N2e{}'.format(j), 'wb') as f:
