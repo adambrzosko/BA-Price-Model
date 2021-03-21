@@ -15,23 +15,23 @@ from scipy import stats
 #import os 
 outputdir = '/home/adam/Desktop/work/3rd Year/Networks/Project' 
 
-#1. think about proper testing - adjacency matrix for small network, weight etc?
-#2. derive the degree distribution by hand for all three phases
-#3. what statistical tests to use? KS - too few values? chisquared - not random
-#4. for part 4 you want the largest m to show discrepancy?
-#5. errors and error bars
-#6. how to explain the logbinning motivation and the stats difference
 
 StartingSize = 64
+#network = [[] for i in range(StartingSize)]
+#for i in range(StartingSize):
+#    att = np.random.choice(StartingSize, np.random.choice(np.arange(1,StartingSize)), replace = False)
+#    for k in att:
+#        if i not in network[k] and i!=k:
+#            network[k].append(i)
+#            network[i].append(k)
+            
 network = [[] for i in range(StartingSize)]
 for i in range(StartingSize):
-    att = np.random.choice(64, np.random.choice(64), replace = False)
-    for k in att:
-        if i not in network[k]:
-            network[k].append(i)
+    for k in range(StartingSize):
+        if i!=k:    
             network[i].append(k)
 
-network = [[1,2,4],[0,2,3],[0,1,3],[1,2],[0]]           #initial network
+#network = [[1,2,4],[0,2,3],[0,1,3],[1,2],[0]]           #initial network
 weights = []                            #how many edges each vertex has
 X = len(network)                        #size of initial network
 T = 0                                   #time
@@ -118,7 +118,8 @@ def DriveMixed(s = 3, q=2/3):
     else:
         AddEdgesPref(m = s)
 
-def logbin(data, scale = 1., zeros = False):
+
+def logbin(data, scale = 1., MaxDeg = 0, zeros = True):
     """
     Taken from:
     Max Falkenberg McGillivray
@@ -129,7 +130,10 @@ def logbin(data, scale = 1., zeros = False):
         raise ValueError('Function requires scale >= 1.')
     count = np.bincount(data)
     tot = np.sum(count)
-    smax = np.max(data)
+    if MaxDeg > 0:
+        smax = MaxDeg
+    else:
+        smax = np.max(data)
     if scale > 1:
         jmax = np.ceil(np.log(smax)/np.log(scale))
         if zeros:
@@ -163,25 +167,31 @@ def DegDist(x, m=1):
 '''
 task 1.3 data
 '''
-for k in range(1,5):
-    network = [[1,2,4],[0,2,3],[0,1,3],[1,2],[0]]           #initial network
-    weights = []                            #how many edges each vertex has
-    X = len(network)                        #size of initial network
-    T = 0                                   #time
-    for i in range(X):
-        weights.append(len(network[i]))
-    Weight = sum(weights)                   #sum of all edges 
-    P = []
-    for i in range(X):
-        P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
+for it in range(1,11):
+    for r in [2, 4, 8, 16, 32]:
+        network = [[] for i in range(r)]
+        for i in range(r):
+            for k in range(r):
+                if i!=k:    
+                    network[i].append(k)
+
+        weights = []                            #how many edges each vertex has
+        X = len(network)                        #size of initial network
+        T = 0                                   #time
+        for i in range(X):
+            weights.append(len(network[i]))
+        Weight = sum(weights)                   #sum of all edges 
+        P = []
+        for i in range(X):
+            P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
 
 
-    for i in range(1000000):
-        DrivePref(k)
-    with open(outputdir+'/deg1M-M{}'.format(k), 'wb') as f:
-        pickle.dump(weights,f)
-    with open(outputdir+'/net1M-M{}'.format(k), 'wb') as f:
-        pickle.dump(network,f)      
+        for i in range(100000):
+            DrivePref(r)
+        with open(outputdir+'/1.3Final/deg100k-M{}Run{}'.format(r,it), 'wb') as f:
+            pickle.dump(weights,f)
+        with open(outputdir+'/1.3Final/net100k-M{}Run{}'.format(r,it), 'wb') as f:
+            pickle.dump(network,f)      
         
 #%%
 '''
@@ -189,8 +199,8 @@ task 1.3
 '''
 
 C = globals()
-for k in range(1,5):
-    with open(outputdir+'/deg100k-M{}'.format(k), 'rb') as f:
+for k in range(1,6):
+    with open(outputdir+'/deg100k-M{}Run4'.format(k), 'rb') as f:
          C['C{}'.format(k)] = sorted(collections.Counter(pickle.load(f)).items())
     x, y = zip(*C['C{}'.format(k)])
     x = np.array(x)
@@ -212,18 +222,37 @@ plt.show()
 '''
 logbinned
 '''
-X = globals()
-Y = globals()
-for k in range(1,5):
-    with open(outputdir+'/deg100k-M{}'.format(k), 'rb') as f:
-         X['X{}'.format(k)], Y['Y{}'.format(k)] = logbin(pickle.load(f), 1.3)
-         plt.plot(X['X{}'.format(k)], Y['Y{}'.format(k)], '-x', label = 'M = {}'.format(k))
-         
-         #plt.plot(X['X{}'.format(k)], DegDist(X['X{}'.format(k)], m=k), '-', label = 'D = {}'.format(k))
-         test_stat = stats.ks_2samp(Y['Y{}'.format(k)], DegDist(X['X{}'.format(k)], m=k))
-         print(test_stat) #too few data points for KS??
-         slope, intercept, r_value, p_value, std_err = stats.linregress(Y['Y{}'.format(k)], DegDist(X['X{}'.format(k)], m=k))
-         print(slope, intercept, r_value, p_value, std_err)
+Data = {}
+for k in range(1,6):
+    L = 2**k
+    Maxes = []
+    for it in range(2,10):
+        with open(outputdir+'/1.3RandomInitial100k/deg100k-M{}Run{}'.format(L,it), 'rb') as f:
+            Data['M{}Run{}'.format(L,it)] = pickle.load(f)
+            Maxes.append(np.max(Data['M{}Run{}'.format(L,it)]))
+    Data['KmaxM{}'.format(L)] = np.max(Maxes)
+    
+for k in range(1,6):
+    L = 2**k
+    Data['X{}'.format(L)] = []
+    Data['Y{}'.format(L)] = []
+    Biggest = 0
+    for it in range(2,10):
+        Data['X{}Run{}'.format(L,it)], Data['Y{}Run{}'.format(L,it)] = logbin(Data['M{}Run{}'.format(L,it)], 1.1, Data['KmaxM{}'.format(L)])
+       
+        for x in Data['X{}Run{}'.format(L,it)]:
+            if x not in Data['X{}'.format(L)]:
+                Data['X{}'.format(L)].append(x)
+                Data['Y{}'.format(L)].append(Data['Y{}Run{}'.format(L,it)][np.ndarray.tolist(Data['X{}Run{}'.format(L,it)]).index(x)])
+            else:
+                Data['Y{}'.format(L)][Data['X{}'.format(L)].index(x)] += Data['Y{}Run{}'.format(L,it)][np.ndarray.tolist(Data['X{}Run{}'.format(L,it)]).index(x)]
+                
+
+for k in range(1,6):
+    L = 2**k
+    Data['Y{}'.format(L)] = [x/9 for x in Data['Y{}'.format(L)]]
+    plt.plot(Data['X{}'.format(L)],Data['Y{}'.format(L)], '+', label = 'M = {}'.format(L))
+
 plt.yscale('log')
 plt.xscale('log')
 plt.legend()
@@ -235,7 +264,14 @@ plt.show()
 we go to highest m possible, m=5
 '''
 for j in range(10,18):
-    network = [[1,2,4],[0,2,3],[0,1,3],[1,2],[0]]           #initial network
+    StartingSize = 32
+    network = [[] for i in range(StartingSize)]
+    for i in range(StartingSize):
+        att = np.random.choice(StartingSize, np.random.choice(np.arange(1,StartingSize)), replace = False)
+        for k in att:
+            if i not in network[k] and i!=k:
+                network[k].append(i)
+                network[i].append(k)
     weights = []                            #how many edges each vertex has
     X = len(network)                        #size of initial network
     T = 0                                   #time
@@ -247,12 +283,9 @@ for j in range(10,18):
         P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
     
     for k in range(2**j): #do like power of 2 or something
-        DrivePref(s=5)
-    with open(outputdir+'/degM5-N2e{}'.format(j), 'wb') as f:
+        DriveRandom(s=2)
+    with open(outputdir+'/MixdegM2-N2e{}'.format(j), 'wb') as f:
         pickle.dump(weights,f)
-    with open(outputdir+'/netM5-N2e{}'.format(j), 'wb') as f:
+    with open(outputdir+'/MixdnetM2-N2e{}'.format(j), 'wb') as f:
         pickle.dump(network,f)     
-
-
-
 
