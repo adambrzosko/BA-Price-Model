@@ -7,10 +7,11 @@ Created on Tue Feb 23 23:54:34 2021
 """
 #import networkx as nx
 import numpy as np
+import numpy.random as random
 import matplotlib.pyplot as plt
 import pickle
-import collections
 from scipy import stats
+from scipy.optimize import curve_fit as cf
 #import random
 #import os 
 outputdir = '/home/adam/Desktop/work/3rd Year/Networks/ProjectData' 
@@ -35,21 +36,12 @@ for i in range(StartingSize):
 weights = []                            #how many edges each vertex has
 X = len(network)                        #size of initial network
 T = 0                                   #time
-#attachments = []
+attachments = []
 for i in range(X):
     weights.append(len(network[i]))
-#    for k in range(len(network[i])):
-#        attachments.append(i)
+    for k in range(len(network[i])):
+        attachments.append(i)
 Weight = sum(weights)                   #sum of all edges 
-
-
-P = []
-for i in range(X):
-    P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
-
-
-N = 10000 - X                              #final number of vertices
-S = 3                                   #how many edges to add on each run
 
 def AddNode():
     global T
@@ -57,31 +49,27 @@ def AddNode():
     T += 1
     network.append([])
     weights.append(0)
-
+    
 def AddEdgesPref(m = 3):
-    global Weight
-    for i in range(T+X-1):                         #recalculate probabilities
-        P[i] = weights[i]/Weight   
+    global Weight 
                               
-    #preferentially choose which old ones to connect with the new one
-    vertices = np.random.choice(T+X-1, m, replace = False, p=P)  
-#    vertices = []
-#    while len(vertices) < m:
-#        a = np.random.choice(attachments)
-#        if a not in vertices:
-#            vertices.append(a)
-#        else:
-#            pass
+    vertices = []
+    while len(vertices) < m:
+        a = attachments[random.randint(len(attachments))]
+        if a not in vertices:
+            vertices.append(a)
+        else:
+            pass
+        
     for k in range(m):                 #make connections and weight ammendments                                           
         network[vertices[k]].append(X+T-1)
-        network[-1].append(k)
+        network[-1].append(vertices[k])
         weights[vertices[k]] += 1
         weights[-1] += 1
-#        attachments.append(vertices[k])
-#        attachments.append(X+T-1)
+        attachments.append(vertices[k])
+        attachments.append(X+T-1)
     Weight += 2*m
-    P.append(0)             #append any new P so that the array is right size
-                            #(gets recalculated on next iteration anyway)
+
                             
 def DrivePref(s = 3):          #run with s as number of new edges per node added
     global Weight
@@ -92,15 +80,22 @@ def AddEdgesRandom(m = 3):
     global Weight  
                               
     #randomly choose which old ones to connect with the new one
-    vertices = np.random.choice(T+X-1, m, replace = False)  
+    vertices = []
+    while len(vertices) < m:
+        a = random.randint(T+X-1)
+        if a not in vertices:
+            vertices.append(a)
+        else:
+            pass
 
     for k in range(m):                 #make connections and weight ammendments                                           
         network[vertices[k]].append(X+T-1)
-        network[-1].append(k)
+        network[-1].append(vertices[k])
         weights[vertices[k]] += 1
         weights[-1] += 1
+        attachments.append(vertices[k])
+        attachments.append(X+T-1)
     Weight += 2*m
-    P.append(0)
                             
 def DriveRandom(s = 3):          #run with s as number of new edges per node added
     global Weight
@@ -113,7 +108,7 @@ def DriveMixed(s = 3, q=2/3):
     '''
     global Weight
     AddNode()
-    if np.random.choice([0,1], p=[q,1-q]) == 1:
+    if random.choice([0,1], p=[q,1-q]) == 1:
         AddEdgesRandom(m = s)
     else:
         AddEdgesPref(m = s)
@@ -176,31 +171,29 @@ def DegDistMixed(x, m=1):
 '''
 task 1.3 data
 '''
-for it in range(1,11):
+for it in range(11,101):
     for r in [2, 4, 8, 16, 32]:
         network = [[] for i in range(r)]
         for i in range(r):
             for k in range(r):
                 if i!=k:    
                     network[i].append(k)
-
-        weights = []                            #how many edges each vertex has
-        X = len(network)                        #size of initial network
-        T = 0                                   #time
+        weights = []                            
+        X = len(network)                        
+        T = 0                                   
+        attachments = []
         for i in range(X):
             weights.append(len(network[i]))
-        Weight = sum(weights)                   #sum of all edges 
-        P = []
-        for i in range(X):
-            P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
-
+            for k in range(len(network[i])):
+                attachments.append(i)
+        Weight = sum(weights)                   
 
         for i in range(100000):
-            DriveMixed(r)
-        with open(outputdir+'/3.3Final/deg100k-M{}Run{}'.format(r,it), 'wb') as f:
+            DriveRandom(r)
+        with open(outputdir+'/2.3Final/deg100k-M{}Run{}'.format(r,it), 'wb') as f:
             pickle.dump(weights,f)
-        with open(outputdir+'/3.3Final/net100k-M{}Run{}'.format(r,it), 'wb') as f:
-            pickle.dump(network,f)      
+#        with open(outputdir+'/1.3Final/net100k-M{}Run{}'.format(r,it), 'wb') as f:
+#            pickle.dump(network,f)      
         
    
 #%%
@@ -212,7 +205,7 @@ Data = {}
 for k in range(1,6):
     L = 2**k
     Maxes = []
-    for it in range(1,11):
+    for it in range(31,51):
         with open(outputdir+'/1.3Final/deg100k-M{}Run{}'.format(L,it), 'rb') as f:
             Data['M{}Run{}'.format(L,it)] = pickle.load(f)
             Maxes.append(np.max(Data['M{}Run{}'.format(L,it)]))
@@ -222,8 +215,7 @@ for k in range(1,6):
     L = 2**k
     Data['X{}'.format(L)] = []
     Data['Y{}'.format(L)] = []
-    Biggest = 0
-    for it in range(1,11):
+    for it in range(31,51):
         Data['X{}Run{}'.format(L,it)], Data['Y{}Run{}'.format(L,it)] = logbin(Data['M{}Run{}'.format(L,it)], 1.1, Data['KmaxM{}'.format(L)], L)
        
         for x in Data['X{}Run{}'.format(L,it)]:
@@ -232,10 +224,10 @@ for k in range(1,6):
                 Data['Y{}'.format(L)].append(Data['Y{}Run{}'.format(L,it)][np.ndarray.tolist(Data['X{}Run{}'.format(L,it)]).index(x)])
             else:
                 Data['Y{}'.format(L)][Data['X{}'.format(L)].index(x)] += Data['Y{}Run{}'.format(L,it)][np.ndarray.tolist(Data['X{}Run{}'.format(L,it)]).index(x)]
-    Data['Y{}'.format(L)] = [x/10 for x in Data['Y{}'.format(L)]]
+    Data['Y{}'.format(L)] = [x/30 for x in Data['Y{}'.format(L)]]
     Data['Y{}Var'.format(L)] = [0 for x in Data['X{}'.format(L)]]
     Data['Y{}Read'.format(L)] = [0 for x in Data['X{}'.format(L)]]
-    for it in range(1,11):
+    for it in range(31,51):
         for x in Data['X{}Run{}'.format(L,it)]:
             Data['Y{}Var'.format(L)][Data['X{}'.format(L)].index(x)] +=  (Data['Y{}Run{}'.format(L,it)][np.ndarray.tolist(Data['X{}Run{}'.format(L,it)]).index(x)] - Data['Y{}'.format(L)][Data['X{}'.format(L)].index(x)])**2
             Data['Y{}Read'.format(L)][Data['X{}'.format(L)].index(x)] += 1
@@ -266,40 +258,122 @@ plt.show()
 1.4 data
 we go to smalles m possible, m=2
 '''
-for it in range(1,11):
+for it in range(21,101):
     for j in range(10,18):
         network = [[] for i in range(2)]
         for i in range(2):
             for k in range(2):
                 if i!=k:    
                     network[i].append(k)
-    weights = []                            #how many edges each vertex has
-    X = len(network)                        #size of initial network
-    T = 0                                   #time
-    for i in range(X):
-        weights.append(len(network[i]))
-    Weight = sum(weights)                   #sum of all edges 
-    P = []
-    for i in range(X):
-        P.append(weights[i]/Weight)         #probabilities of assignment (preferential)
+        weights = []                            #how many edges each vertex has
+        X = len(network)                        #size of initial network
+        T = 0                                   #time
+        attachments = []
+        for i in range(X):
+            weights.append(len(network[i]))
+            for k in range(len(network[i])):
+                attachments.append(i)
+        Weight = sum(weights)                   #sum of all edges 
+        
     
-    for k in range(2**j): #do like power of 2 or something
-        DrivePref(s=2)
-    with open(outputdir+'/1.4Final/degM2-N2e{}Run{}'.format(j,it), 'wb') as f:
-        pickle.dump(weights,f)
-    with open(outputdir+'/1.4Final/netM2-N2e{}Run{}'.format(j,it), 'wb') as f:
-        pickle.dump(network,f)     
+        for k in range(2**j): #do like power of 2 or something
+            DrivePref(s=2)
+        with open(outputdir+'/1.4Final/degM2-N2e{}Run{}'.format(j,it), 'wb') as f:
+            pickle.dump(weights,f)
+#        with open(outputdir+'/1.4Final/netM2-N2e{}Run{}'.format(j,it), 'wb') as f:
+#            pickle.dump(network,f)     
 
 #%%
 '''
 1.4 analysis
 '''
 DataK = {}
-for k in range(10,18):
-    N = 2**j
+for j in range(10,18):
+    N = j
     Maxes = []
-    for it in range(1,11):
+    for it in range(1,101):
         with open(outputdir+'/1.4Final/degM2-N2e{}Run{}'.format(N,it), 'rb') as f:
-            DataK['M{}Run{}'.format(L,it)] = pickle.load(f)
-            Maxes.append(np.max(DataK['M{}Run{}'.format(L,it)]))
-    DataK['KmaxM{}'.format(L)] = np.max(Maxes)
+            DataK['N{}Run{}'.format(N,it)] = pickle.load(f)
+            Maxes.append(np.max(DataK['N{}Run{}'.format(N,it)]))
+    DataK['KmaxN{}'.format(N)] = np.max(Maxes)
+    DataK['MaxesN{}'.format(N)] = Maxes
+
+for k in range(10,18):
+    N = k
+    DataK['X{}'.format(N)] = []
+    DataK['Y{}'.format(N)] = []
+    for it in range(1,101):
+        DataK['X{}Run{}'.format(N,it)], DataK['Y{}Run{}'.format(N,it)] = logbin(DataK['N{}Run{}'.format(N,it)], 1.3, DataK['KmaxN{}'.format(N)], 2)
+       
+        for x in DataK['X{}Run{}'.format(N,it)]:
+            if x not in DataK['X{}'.format(N)]:
+                DataK['X{}'.format(N)].append(x)
+                DataK['Y{}'.format(N)].append(DataK['Y{}Run{}'.format(N,it)][np.ndarray.tolist(DataK['X{}Run{}'.format(N,it)]).index(x)])
+            else:
+                DataK['Y{}'.format(N)][DataK['X{}'.format(N)].index(x)] += DataK['Y{}Run{}'.format(N,it)][np.ndarray.tolist(DataK['X{}Run{}'.format(N,it)]).index(x)]
+    DataK['Y{}'.format(N)] = [x/100 for x in DataK['Y{}'.format(N)]]
+    DataK['Y{}Var'.format(N)] = [0 for x in DataK['X{}'.format(N)]]
+    DataK['Y{}Read'.format(N)] = [0 for x in DataK['X{}'.format(N)]]
+    for it in range(1,101):
+        for x in DataK['X{}Run{}'.format(N,it)]:
+            DataK['Y{}Var'.format(N)][DataK['X{}'.format(N)].index(x)] +=  (DataK['Y{}Run{}'.format(N,it)][np.ndarray.tolist(DataK['X{}Run{}'.format(N,it)]).index(x)] - DataK['Y{}'.format(N)][DataK['X{}'.format(N)].index(x)])**2
+            DataK['Y{}Read'.format(N)][DataK['X{}'.format(N)].index(x)] += 1
+    DataK['Y{}Stdev'.format(N)] = [np.sqrt(DataK['Y{}Var'.format(N)][i]/DataK['Y{}Read'.format(N)][i]) for i in range(len(DataK['Y{}Var'.format(N)]))]
+    DataK['X{}'.format(N)], DataK['Y{}'.format(N)], Data['Y{}Stdev'.format(N)] = zip(*sorted(zip(DataK['X{}'.format(N)], DataK['Y{}'.format(N)], DataK['Y{}Stdev'.format(N)])))
+    DataK['X{}'.format(N)] = np.array((DataK['X{}'.format(N)]))
+    DataK['Y{}'.format(N)] = np.array((DataK['Y{}'.format(N)]))
+    DataK['Y{}Stdev'.format(N)] = np.array((DataK['Y{}Stdev'.format(N)]))
+for k in range(10,18):
+    base = np.linspace(k**2,60*k,1000)
+    #base = np.linspace(k**2,3000,1000) #preferential
+    N = k
+    plt.errorbar(DataK['X{}'.format(N)],DataK['Y{}'.format(N)], yerr = DataK['Y{}Stdev'.format(N)], label = 'M = {}'.format(N), capsize = 3)
+    #plt.plot(base, DegDistRand(base,L), '-', label = 'Theoretical M = {}'.format(L))
+plt.yscale('log')
+plt.xscale('log')
+plt.legend()
+plt.show()
+
+#%%
+'''
+max k
+'''
+def Fit(N, a, b):
+    k = a*(N**b)
+    return k
+
+y = []
+x = []
+for k in range(10,18):
+    N = k
+    AvgMax = np.average(DataK['MaxesN{}'.format(N)])
+    Error = np.std(DataK['MaxesN{}'.format(N)])
+    plt.errorbar(2**N, AvgMax, yerr = Error, label = 'N = 2^{}'.format(N), capsize = 3)
+    y.append(AvgMax)
+    x.append(2**N)
+    
+popt, pcov = cf(Fit, x, y)
+print('The slope is', popt[1], 'pm', np.sqrt(pcov[1][1]))
+plt.plot(x, Fit(x, *popt), '--k', label = 'Fit')
+plt.yscale('log')
+plt.xscale('log')
+plt.legend()
+plt.show()
+
+#%%
+'''
+data collapse
+'''
+for k in range(10,18):
+    N = k
+    DataK['X{}Scaled'.format(N)] = [DataK['X{}'.format(N)][i]/DataK['KmaxN{}'.format(N)] for i in range(len(DataK['X{}'.format(N)]))]
+    DataK['Y{}Scaled'.format(N)] = [DataK['Y{}'.format(N)][i]/DegDist(DataK['X{}'.format(N)][i], m=2) for i in range(len(DataK['X{}'.format(N)]))]
+    DataK['Y{}StdevScaled'.format(N)] = [DataK['Y{}Stdev'.format(N)][i]/DegDist(DataK['X{}'.format(N)][i], m=2) for i in range(len(DataK['X{}'.format(N)]))]
+    plt.plot(DataK['X{}Scaled'.format(N)],DataK['Y{}Scaled'.format(N)], '.', label = 'M = {}'.format(N))
+    
+plt.yscale('log')
+plt.xscale('log')
+plt.legend()
+plt.show()
+
+
